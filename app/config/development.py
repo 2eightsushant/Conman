@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
-from config.services.base import BaseAppSettings
-from config.services.database import DatabaseSettings
+from .services.base import BaseAppSettings
+from .services.database import DatabaseSettings
 from pathlib import Path
 from pydantic import Field
 

@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16.9-bullseye
+    container_name: conman-db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: conman
+      POSTGRES_PASSWORD: conman123
+      POSTGRES_DB: conman_db
+    volumes:
+      - conman_data:/var/lib/postgresql/data
+    networks:
+      - conman-network
+
+volumes:
+  conman_data:
+
+networks:
+  conman-network:
+    external: true

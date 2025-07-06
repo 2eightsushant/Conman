@@ -6,6 +6,8 @@ class DatabaseSettings(BaseSettings):
     database_port: int
     database_user: str
     database_pass: str
+    database_db: str
+    database_url: str
 
     model_config = {
         "env_file": str(Path(__file__).resolve().parents[3] / ".env"),
