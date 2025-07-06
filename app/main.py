@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 import os
 from fastapi import FastAPI
 from config.settings import settings
@@ -11,7 +10,7 @@ logging.basicConfig(
 # Load .env file from project root
 
 app = FastAPI(title=settings.app_name)
-print(settings.app_name)
+print(settings.database.database_pass, settings.database.database_url)
 
 @app.get("/")
 async def root():

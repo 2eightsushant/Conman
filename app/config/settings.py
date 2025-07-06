@@ -1,4 +1,4 @@
-from config.development import DevelopmentSettings
+from .development import DevelopmentSettings
 from pathlib import Path
 from typing import Dict, Type, Union, Literal
 from pydantic_settings import BaseSettings
@@ -7,7 +7,7 @@ class EnvSettings(BaseSettings):
     env: Literal["development", "production"] = "development"
 
     model_config = {
-        "env_file": str(Path(__file__).resolve().parents[3] / ".env"),
+        "env_file": str(Path(__file__).resolve().parents[2] / ".env"),
         "env_file_encoding": "utf-8",
         "extra": "ignore"
     }

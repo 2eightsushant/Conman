@@ -9,5 +9,6 @@ dependencies = [
     "pydantic",
     "asyncpg",
     "alembic",
-    "sqlalchemy[asyncio]"
+    "sqlalchemy[asyncio]",
+    "psycopg2-binary",
 ]
