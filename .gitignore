@@ -11,3 +11,4 @@ wheels/
 .env
 app/logs/
 docker/docker-compose.yml
+app/logs/
