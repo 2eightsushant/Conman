@@ -14,3 +14,4 @@ class ChatSession(Base):
     
     user = relationship("User", back_populates="chat_sessions")
     messages = relationship("ChatMessage", back_populates="session", order_by="ChatMessage.position")
+    ingestion_head = relationship("IngestionHead", uselist=False, back_populates="session")
