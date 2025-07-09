@@ -12,3 +12,4 @@ wheels/
 app/logs/
 docker/docker-compose.yml
 app/logs/
+app/onnx/

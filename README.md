@@ -14,3 +14,17 @@
 - Added helper head to get head, update head and update isVectorized
 - Added ingestMessage that will later be integrated with Ray. It is still synchronous module.
 - Some alembic migration heads
+
+4th modification:
+- Added Dialouge centric windowing: 
+    - It preserves speaker roles
+    - It slides through the full conversation using a fixed-size window maintaining local context
+    - It performs implicitly semantic splitting by:
+        1. Formatting with roles
+        2. Using overlapping context
+        3. Anchoring to dialoug turns
+- Added emotions metadata implied from: https://huggingface.co/SamLowe/roberta-base-go_emotions-onnx
+    - Use ONNX quantized version served by Huggingface ORTModelForSequenceClassification
+- Cached the get_emotions method
+- Pydantified ingest message process with db models
+- Inserted 50 dummy data
