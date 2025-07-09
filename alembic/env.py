@@ -12,6 +12,7 @@ from app.db.models import *
 from app.db.models.user import User
 from app.db.models.chatmessage import ChatMessage
 from app.db.models.chatsession import ChatSession
+from app.db.models.ingestion_head import IngestionHead
 
 from app.shared.logger import get_logger
 
