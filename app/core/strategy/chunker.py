@@ -1,6 +1,7 @@
 from typing import List, Dict
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from uuid import UUID
+from datetime import datetime
 from app.shared.logger import get_logger
 
 logger = get_logger(__name__)
@@ -40,20 +41,30 @@ class DialogChunker:
 
             for i, msg in enumerate(processed):
                 buffer.append((counter, msg))
+                time_span = []
 
                 if len(buffer) >= self.window_size or i == len(processed) - 1:
                     content = "\n".join([f"{b[1]['role'].capitalize()}: {b[1]['content']}" for b in buffer])
                     emotions = emotion_model.get_emotions("\n".join([f"{b[1]['content']}" for b in buffer if b[1]['role'] == 'user']))
+                    for k in range(1, len(buffer)):
+                        prev_time = buffer[k-1][1]['message_created_at']
+                        curr_time = buffer[k][1]['message_created_at']
+                        diff = (curr_time-prev_time).total_seconds()
+                        time_span.append(diff)
+
                     metadata = {
                         "session_id": session_id,
-                        "start_index": buffer[0][0],
-                        "end_index": buffer[-1][0],
                         "username": list(set(b[1]['name'] for b in buffer)),
                         "speakers": list(set(b[1]['role'] for b in buffer)),
                         "emotions": emotions,
-                        "session_position": [b[1]['session_position'] for b in buffer],
-                        "message_indices": [b[0] for b in buffer],
-                        "prev_chunk_id": chunks[-1]["id"] if chunks else None,
+                        "temporal_context": {
+                            "start_index": buffer[0][0] if buffer else -1,
+                            "end_index": buffer[-1][0] if buffer else -1,
+                            "session_position": [b[1]['session_position'] for b in buffer],
+                            "message_indices": [b[0] for b in buffer],
+                            "prev_chunk_id": chunks[-1]["id"] if chunks else None,
+                            "time_span_seconds": time_span,
+                        },
                         "timestamp": [b[1]['message_created_at'] for b in buffer],
                     }
 
