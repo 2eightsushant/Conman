@@ -28,3 +28,11 @@
 - Cached the get_emotions method
 - Pydantified ingest message process with db models
 - Inserted 50 dummy data
+
+5th modification:
+- Added weaviate connection manager
+- Added weaviate collection with:
+    1. Vectorizer = Null + bm25
+    2. Vector index = HNSW (default)
+    3. Properties and nested properties with index filterable
+- Modified chunker: Nested some metadata to temporal_context
