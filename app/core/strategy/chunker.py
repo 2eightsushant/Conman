@@ -1,7 +1,8 @@
 from typing import List, Dict
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from weaviate.util import generate_uuid5
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from app.shared.logger import get_logger
 
 logger = get_logger(__name__)
@@ -65,11 +66,14 @@ class DialogChunker:
                             "prev_chunk_id": chunks[-1]["id"] if chunks else None,
                             "time_span_seconds": time_span,
                         },
-                        "timestamp": [b[1]['message_created_at'] for b in buffer],
+                        "timestamp": [
+                                (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc))
+                                for ts in [b[1]['message_created_at'] for b in buffer]
+                            ],
                     }
 
                     chunks.append({
-                        "id": f"{session_id}_{buffer[0][0]}-{buffer[-1][0]}",
+                        "id": generate_uuid5(f"{session_id}_{buffer[0][0]}-{buffer[-1][0]}"),
                         "content": content,
                         "metadata": metadata
                     })

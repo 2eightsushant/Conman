@@ -73,7 +73,7 @@ def insert_dummy_data2():
     db: Session = SessionLocal()
 
     try:
-        sessionid = uuid.UUID('d025e2b3-8f51-452f-b152-105084c664b2')
+        sessionid = uuid.UUID('7b859f3f-2882-4394-97f9-0482f14a40c1')
 
         # Example message content (extendable)
         user_prompts = [
