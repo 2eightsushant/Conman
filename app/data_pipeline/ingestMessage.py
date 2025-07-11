@@ -7,6 +7,12 @@ from app.schemas.db_models import HeadResponse, MessageModel
 from typing import Optional, List, Generator
 from app.core.strategy.get_emotions import RoBertEmotionGo
 from sqlalchemy.orm import Session
+from app.core.factory.vectorizer_local import EmbeddingFactory
+from app.data_pipeline.push_to_weaviate import ingest_chunk
+from weaviate.util import generate_uuid5
+from app.core.weaviate.schema import DialogMemorySchema
+from app.conn.weaviate_client import WeaviateClient
+from tqdm import tqdm
 from contextlib import contextmanager
 from app.shared.logger import get_logger
 
@@ -48,6 +54,9 @@ def ingest_ready_messages(session_id: UUID):
             .order_by(ChatMessage.position.asc())\
             .all()
 
+            if not messages:
+                logger.debug("No new messages")
+
             messages_dict = [
                 {
                     "session_id" : message.session_id,
@@ -61,13 +70,35 @@ def ingest_ready_messages(session_id: UUID):
             ]
 
             chunker = DialogChunker()
+            weaviate_wrapper = WeaviateClient()
+            weaviate_wrapper.init_client()
+            client = weaviate_wrapper.get()
+            DialogMemorySchema().initialize_schema(client)
             emotion_model = RoBertEmotionGo(k=2)
             chunks = chunker.chunk(messages=messages_dict, emotion_model=emotion_model)
+            embed_model = EmbeddingFactory.get_embedding_model()
+            # if client.collections.exists("DialogMemory"):
+            #     logger.debug("Deleting collection")
+            #     client.collections.delete("DialogMemory")
+            collection = client.collections.get("DialogMemory")
 
-            print(chunks[5])
-
-            # docs = convert_messages_to_docs(messages)
-            # push_to_vector_db(docs, session_id)
+            try:
+                for chunk in tqdm(chunks, desc="Pushing chunks to Weaviate"):
+                    try:
+                        exists = collection.data.exists(chunk["id"])
+                        if not exists:
+                            logger.info(f"Inserting new chunk: {chunk['id']}")
+                            vector = embed_model.encode(chunk['content'])
+                            ingest_chunk(client=client, chunk=chunk, embedding=vector)
+                        else:
+                            logger.info(f"Chunk {chunk['id']} already exists, skipping.")
+                    except Exception as e:
+                        logger.error(f"Chunk ingestion failed for {chunk['id']}: {str(e)}")
+            finally:
+                try:
+                    weaviate_wrapper.close()
+                except Exception as e:
+                    logger.warning(f"Could not close Weaviate client cleanly: {e}")
 
             # updatehead(db, session_id, head_response)
             # updateIsVectorized(db, session_id, messages)
@@ -79,7 +110,7 @@ def ingest_ready_messages(session_id: UUID):
 
 
 def main():
-    sid = 'd025e2b3-8f51-452f-b152-105084c664b2'
+    sid = '7b859f3f-2882-4394-97f9-0482f14a40c1'
     ingest_ready_messages(sid)
 
 if __name__== "__main__":

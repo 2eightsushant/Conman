@@ -15,4 +15,7 @@ dependencies = [
     "langchain-experimental",
     "optimum[onnxruntime]",
     "weaviate-client",
+    "uvicorn",
+    "sentence-transformers",
+    "tqdm"
 ]

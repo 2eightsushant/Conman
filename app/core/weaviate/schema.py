@@ -21,7 +21,7 @@ class DialogMemorySchema:
                     self.collection_object = client.collections.create(
                         name=self.collection_name,
                         description="Dialog-centric episodic memory chunks with turn-taking, emotions, and temporal structure.",
-                        vectorizer_config=wvc.config.Configure.Vectorizer.none,
+                        vectorizer_config=wvc.config.Configure.Vectorizer.none(),
                         vector_index_config=wvc.config.Configure.VectorIndex.hnsw(),
                         properties=[
                             wvc.config.Property(
@@ -99,7 +99,7 @@ class DialogMemorySchema:
                                     ),
                                     wvc.config.Property(
                                         name="time_span_seconds",
-                                        data_type=wvc.config.DataType.NUMBER,
+                                        data_type=wvc.config.DataType.NUMBER_ARRAY,
                                         description="Total time span between the messages",
                                         index_filterable=True
                                     )
@@ -113,7 +113,7 @@ class DialogMemorySchema:
                             index_null_state=True,
                             index_property_length=True,
                             index_timestamps=True,
-                            stopwords_preset="en"
+                            stopwords_preset=wvc.config.StopwordsPreset.EN
                         )
                     )
                     logger.info(f"Collection successfully created: {self.collection_name}")

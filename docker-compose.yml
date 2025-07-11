@@ -43,7 +43,20 @@ services:
       AUTHORIZATION_RBAC_ROOT_USERS: 'conman'
     networks:
       - conman-network
-
+  
+  # vectorizer:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.vectorizer
+  #   container_name: vectorizer-api
+  #   ports:
+  #     - "8050:8050"
+  #   networks:
+  #     - conman-network
+  #   depends_on:
+  #     - db
+  #     - weaviate
+      
 volumes:
   conman_data:
   weaviate_data:

@@ -36,3 +36,11 @@
     2. Vector index = HNSW (default)
     3. Properties and nested properties with index filterable
 - Modified chunker: Nested some metadata to temporal_context
+
+6th modification:
+- Configured vectorizer: used sentence-transformers/all-MiniLM-L6-v2
+- Added both api (docker) and local (dev) instance for vectorizer(embedding model)
+- Chunker: Modified timestamp and added UUID on custom id
+- Developed chunks to weaviate ingest process aligned with desinged schema
+- Modified main ingestMessage flow [Only good for test, have to make it robust]
+- Added Dockerfile.vectorizer and integrated on yaml (not optimized)
