@@ -6,7 +6,7 @@ from app.core.strategy.chunker import DialogChunker
 from app.schemas.db_models import HeadResponse, MessageModel
 from typing import Optional, List, Generator
 from app.core.strategy.get_emotions import RoBertEmotionGo
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.core.factory.vectorizer_local import EmbeddingFactory
 from app.data_pipeline.push_to_weaviate import ingest_chunk
 from weaviate.util import generate_uuid5
@@ -39,28 +39,23 @@ def ingest_ready_messages(session_id: UUID):
     try:
         with db_session() as db:
             head_response: HeadResponse = gethead(db, session_id)
-            messages: List[MessageModel] = db.query(
-                ChatMessage.session_id,
-                User.name,
-                ChatMessage.role,
-                ChatMessage.content,
-                ChatMessage.position,
-                ChatMessage.created_at
-                )\
-            .join(ChatSession, ChatMessage.session_id==ChatSession.id)\
-            .join(User, ChatSession.user_id==User.id)\
+            messages = db.query(ChatMessage)\
+            .join(ChatSession, ChatMessage.session_id == ChatSession.id)\
+            .join(User, ChatSession.user_id == User.id)\
             .filter(ChatMessage.session_id == session_id)\
             .filter(ChatMessage.position > head_response.current_head)\
+            .options(joinedload(ChatMessage.session).joinedload(ChatSession.user))\
             .order_by(ChatMessage.position.asc())\
             .all()
 
             if not messages:
-                logger.debug("No new messages")
+                logger.info("No new messages")
+                return
 
             messages_dict = [
                 {
                     "session_id" : message.session_id,
-                    "name" : message.name,
+                    "name" : message.session.user.name,
                     "role" : message.role.value,
                     "content" : message.content,
                     "session_position" : message.position,
@@ -100,8 +95,8 @@ def ingest_ready_messages(session_id: UUID):
                 except Exception as e:
                     logger.warning(f"Could not close Weaviate client cleanly: {e}")
 
-            # updatehead(db, session_id, head_response)
-            # updateIsVectorized(db, session_id, messages)
+            updatehead(db, session_id, head_response)
+            update_is_vectorized(db, messages)
 
     
     except Exception as e:

@@ -46,3 +46,4 @@ class MessageModel(BaseModel):
     content: str
     position: int
     created_at: datetime
+    is_vectorized: bool

@@ -1,8 +1,8 @@
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import func
+from sqlalchemy import func, text
 from app.db.models.ingestion_head import IngestionHead
 from app.db.models.chatmessage import ChatMessage
-from app.schemas.db_models import HeadResponse, ChatMessageModel, IngestionHeadModel
+from app.schemas.db_models import HeadResponse, MessageModel, IngestionHeadModel
 from typing import Optional, List
 from app.shared.logger import get_logger
 
@@ -21,31 +21,31 @@ def gethead(db, session_id: UUID | str) -> HeadResponse:
         raise
 
 
-def updatehead(db, session_id: UUID | str, head: HeadResponse, max_position: Optional[int]) -> None:
+def updatehead(db, session_id: UUID | str, head: HeadResponse) -> None:
     '''Updates head to last vectorized message with advisory lock'''
     logger.info(f"Updating head for session {session_id}")
 
     lock_id = hash(str(session_id)) % 2**31
-    db.execute(f"SELECT pg_advisory_lock({lock_id})")
+    db.execute(text(f"SELECT pg_advisory_lock({lock_id})"))
     try:
-        if not head:
-            head = IngestionHead(
+        if not head.head:
+            ihead = IngestionHead(
                 session_id=session_id,
-                current_position=max_position
+                current_position=head.max_position
             )
-            db.add(head)
+            db.add(ihead)
         else:
-            head.current_position = max_position
-        logger.info(f"Updated head to {max_position} for session {session_id}")
+            head.head.current_position = head.max_position
+        logger.info(f"Updated head to {head.max_position} for session {session_id}")
     except Exception as e:
         logger.error(f"Updating head failed for session {session_id}: {str(e)}")
         raise
     finally:
-        db.execute(f"SELECT pg_advisory_unlock({lock_id})")
+        db.execute(text(f"SELECT pg_advisory_unlock({lock_id})"))
 
     
 
-def update_is_vectorized(db, messages: List[ChatMessageModel]) -> None:
+def update_is_vectorized(db, messages: List[MessageModel]) -> None:
     '''Mark messages as vectorized'''
     try:
         for message in messages:

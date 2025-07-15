@@ -44,3 +44,8 @@
 - Developed chunks to weaviate ingest process aligned with desinged schema
 - Modified main ingestMessage flow [Only good for test, have to make it robust]
 - Added Dockerfile.vectorizer and integrated on yaml (not optimized)
+
+7th modification:
+- Integrated update_head and update_is_vectorized
+- Reconfigured message query, had to use joinedload for orm support of foreign columns
+- Fixed minor pg_advisory lock/unlock querying bug with text wrapper
