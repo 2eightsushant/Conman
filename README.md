@@ -49,3 +49,8 @@
 - Integrated update_head and update_is_vectorized
 - Reconfigured message query, had to use joinedload for orm support of foreign columns
 - Fixed minor pg_advisory lock/unlock querying bug with text wrapper
+
+8th modification:
+- Developed memory retriever with congitive reranker, they retrieves and reranks chat memory chunks from Weaviate based on cognitive relevance (semantic, emotional, temporal, associative signals). Optional: memory retention is also integrated
+- Weights of congitive relevance and score are provided with pydantic env variable settings
+- Modified the emotion model to local serve for now

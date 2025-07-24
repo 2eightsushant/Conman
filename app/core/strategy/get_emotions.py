@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, pipeline
 from optimum.onnxruntime import ORTModelForSequenceClassification
+from app.core.factory.emotions_local import EmotionFactory
 from typing import List
 from functools import lru_cache
 from app.shared.logger import get_logger
@@ -13,11 +14,7 @@ class RoBertEmotionGo:
 
         # Load tokenizer and ONNX model only once (during instantiation)
         self.tokenizer = AutoTokenizer.from_pretrained("SamLowe/roberta-base-go_emotions-onnx")
-        self.model = ORTModelForSequenceClassification.from_pretrained(
-            "SamLowe/roberta-base-go_emotions-onnx",
-            subfolder="onnx",
-            file_name="model_quantized.onnx"
-        )
+        self.model = EmotionFactory.get_model()
 
         # Create ONNX pipeline once and reuse
         self.onnx_classifier = pipeline(
