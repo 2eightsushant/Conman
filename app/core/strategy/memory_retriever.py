@@ -5,6 +5,8 @@ from weaviate.classes.query import HybridFusion
 from app.core.factory.vectorizer_local import EmbeddingFactory
 from app.core.factory.reranker_local import RerankerFactory
 from app.core.strategy.congnitive_reranker import cognitive_relevance_rerank
+from app.core.strategy.memory_formatter import MemoryFormatter
+from app.core.strategy.memory_sim import apply_memory_effects
 from app.shared.logger import get_logger
 
 logger = get_logger(__name__)
@@ -63,7 +65,7 @@ def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
                     "associative_link": props.get('temporal_context', {}).get('prev_chunk_id')
                 })
                 
-            return {
+            response = {
                 "top_chunks": [{
                     "content": props['content'],
                         "cognitive_score": score,
@@ -79,8 +81,14 @@ def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
                     "mean_cognitive_score": np.mean([s for s, _, _ in reranked[:top_k]]).item(),
                     "retention_period": f"{MEMORY_RETENTION_DAYS} days"
                 },
-                "description": "Memory found"
+                "description": "Memory found",
+                "raw_reranked": reranked
             }
+            
+            #only to mimic human, don't use in production
+            # response = apply_memory_effects(response, context)
+            return response
+
     
     except Exception as e:
         logger.error(f"Retrieval failed: {str(e)}")
@@ -93,7 +101,9 @@ def main():
     query = "Are you aware about AI ?"
     context = {"session_id":"7b859f3f-2882-4394-97f9-0482f14a40c1", "emotion":"neutral"}
     response = retrieve(query, context, top_k=3)
-    print(response)
+    formatter = MemoryFormatter(include_metadata=True, readable_time=True)
+    formatted = formatter.format(reranked_chunks=response["raw_reranked"], limit=3)
+    print(formatted)
     
 if __name__== "__main__":
     main()
