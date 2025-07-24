@@ -55,3 +55,16 @@
 - Uses cross-encoder/ms-marco-MiniLM-L-6-v2 [https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2] reranker served by sentence transformer
 - Weights of congitive relevance and score are provided with pydantic env variable settings
 - Modified the emotion model to local serve for now
+
+9th modification:
+- Developed memory formatter, a way to:
+	1.	Use score meaningfully (e.g., as importance or clarity)
+	2.	Preserve continuity using prev_chunk_id
+	3.	Enhance emotional reasoning by naming emotion + intensity (if available)
+	4.	Use structured formatting that LLMs parse well
+	5.	Keep output readable, compact, and semantically dense
+- Implemented optional human memory like simualation with 
+    1.  Primacy / Recency Bias
+    2.  Emotional bias amplification
+    3.  Fading memories in emotion groups
+    4.  Memory characteristics [vividness, coherence, emotional_valence]
