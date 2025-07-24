@@ -51,6 +51,7 @@
 - Fixed minor pg_advisory lock/unlock querying bug with text wrapper
 
 8th modification:
-- Developed memory retriever with congitive reranker, they retrieves and reranks chat memory chunks from Weaviate based on cognitive relevance (semantic, emotional, temporal, associative signals). Optional: memory retention is also integrated
+- Developed memory retriever with cognitive reranker, they retrieves and reranks chat memory chunks from Weaviate based on cognitive relevance (semantic, emotional, temporal, associative signals). Optional: memory retention is also integrated
+- Uses cross-encoder/ms-marco-MiniLM-L-6-v2 [https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2] reranker served by sentence transformer
 - Weights of congitive relevance and score are provided with pydantic env variable settings
 - Modified the emotion model to local serve for now
