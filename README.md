@@ -68,3 +68,9 @@
     2.  Emotional bias amplification
     3.  Fading memories in emotion groups
     4.  Memory characteristics [vividness, coherence, emotional_valence]
+ 
+10th modification:
+- Added ollama server of  model llama3.2:3b with docker
+- did a tool checking capability
+- developed rough recall functionality with initial testing
+- inserted little complicated conversation of dummy data
