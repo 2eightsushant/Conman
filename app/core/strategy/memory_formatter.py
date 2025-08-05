@@ -1,44 +1,35 @@
 from datetime import datetime, timezone
+from typing import List, Dict, Any
+
 
 class MemoryFormatter:
-    def __init__(self, include_metadata: bool = True, readable_time: bool = True):
-        self.include_metadata = include_metadata
+    def __init__(self, readable_time: bool = True):
         self.readable_time = readable_time
 
-    def format(self, reranked_chunks: list, limit: int = 5) -> list[str]:
+    def format(self, reranked_chunks: List[tuple], limit: int = 5) -> List[Dict[str, Any]]:
         formatted = []
 
-        for i, (score, props, meta) in enumerate(reranked_chunks[:limit]):
-            content = props.get("content", "")
-            emotion = props.get("emotions", ["neutral"])
-            emotion_str = ", ".join(emotion).capitalize()
+        for score, props, meta in reranked_chunks[:limit]:
+            content = props.get("content", "").strip()
+            if not content:
+                continue
+
             timestamps = props.get("timestamp", [])
             timestamp = max(timestamps) if isinstance(timestamps, list) and timestamps else None
-            time_str = self._format_time(timestamp) if self.readable_time and timestamp else "Unknown time"
+            time_str = self._format_time(timestamp) if timestamp and self.readable_time else "unknown time"
 
-            prev_link = props.get("temporal_context", {}).get("prev_chunk_id")
-            continuity_note = "Continues from earlier memory." if prev_link else ""
-
-            importance = self._score_label(score)
-
-            # Semantic-rich block
-            memory_block = (
-                f"Memory {i+1}:\n"
-                f"- Importance: {importance}\n"
-                f"- Emotion: {emotion_str}\n"
-                f"- Time: {time_str}\n"
-            )
-
-            if continuity_note:
-                memory_block += f"- Note: {continuity_note}\n"
-
-            memory_block += f"- Content: {content.strip()}\n"
-
-            formatted.append(memory_block.strip())
+            formatted.append({
+                "time": time_str,
+                "content": content,
+                "score": score.item(),
+                "emotion": props.get("emotions", ["neutral"]),
+                "importance": self._score_label(score),
+                "continues_from": bool(props.get("temporal_context", {}).get("prev_chunk_id"))
+            })
 
         return formatted
 
-    def _format_time(self, timestamp):
+    def _format_time(self, timestamp: datetime) -> str:
         now = datetime.now(timezone.utc)
         diff = now - timestamp
         hours = diff.total_seconds() / 3600
@@ -52,7 +43,6 @@ class MemoryFormatter:
             return timestamp.strftime("%b %d, %Y")
 
     def _score_label(self, score: float) -> str:
-        """Maps cognitive score into importance labels"""
         if score >= 0.85:
             return "Highly relevant"
         elif score >= 0.6:

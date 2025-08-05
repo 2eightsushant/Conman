@@ -105,7 +105,7 @@ def ingest_ready_messages(session_id: UUID):
 
 
 def main():
-    sid = '7b859f3f-2882-4394-97f9-0482f14a40c1'
+    sid = 'a4a33e50-c3ec-4672-b806-1c8ed51ad6d1'
     ingest_ready_messages(sid)
 
 if __name__== "__main__":

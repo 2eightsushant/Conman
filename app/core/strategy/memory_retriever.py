@@ -30,8 +30,8 @@ def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
             
             vector = embed_model.encode(query)
             filters = (
-                Filter.by_property("session_id").equal(context['session_id']) &
-                Filter.by_property("emotions").contains_any([context['emotion']])
+                Filter.by_property("session_id").equal(context['session_id']) 
+                # Filter.by_property("emotions").contains_any([context['emotion']])
                 # Filter.by_property("timestamp").greater_than(
                 #     datetime.now() - timedelta(days=MEMORY_RETENTION_DAYS)
                 # )
@@ -98,8 +98,8 @@ def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
         
 #testing
 def main():
-    query = "Are you aware about AI ?"
-    context = {"session_id":"7b859f3f-2882-4394-97f9-0482f14a40c1", "emotion":"neutral"}
+    query = "I’ve been thinking about how I used to enjoy things more. Did I talk about that before ?"
+    context = {"session_id":"a4a33e50-c3ec-4672-b806-1c8ed51ad6d1", "emotion":"neutral"}
     response = retrieve(query, context, top_k=3)
     formatter = MemoryFormatter(include_metadata=True, readable_time=True)
     formatted = formatter.format(reranked_chunks=response["raw_reranked"], limit=3)
