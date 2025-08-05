@@ -1,0 +1,13 @@
+FROM ollama/ollama:latest
+
+USER root
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+
+WORKDIR /root
+COPY docker/start.sh .
+RUN chmod +x start.sh
+
+EXPOSE 11434
+
+ENTRYPOINT ["./start.sh"]

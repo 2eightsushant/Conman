@@ -56,10 +56,24 @@ services:
   #   depends_on:
   #     - db
   #     - weaviate
+
+  ollama:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ollama
+    container_name: conman-ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - conman-network
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
       
 volumes:
   conman_data:
   weaviate_data:
+  ollama_models:
 
 networks:
   conman-network:
