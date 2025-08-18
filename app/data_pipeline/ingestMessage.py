@@ -7,7 +7,7 @@ from app.schemas.db_models import HeadResponse, MessageModel
 from typing import Optional, List, Generator
 from app.core.strategy.get_emotions import RoBertEmotionGo
 from sqlalchemy.orm import Session, joinedload
-from app.core.factory.vectorizer_local import EmbeddingFactory
+from app.core.factory.local.vectorizer_local import EmbeddingFactory
 from app.data_pipeline.push_to_weaviate import ingest_chunk
 from weaviate.util import generate_uuid5
 from app.core.weaviate.schema import DialogMemorySchema

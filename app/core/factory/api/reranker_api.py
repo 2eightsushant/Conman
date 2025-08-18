@@ -1,20 +1,20 @@
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import JSONResponse
-from app.schemas.vec_text_input import TextInput
+from app.schemas.rerank_schema import RerankInput, RerankResponse
 from contextlib import asynccontextmanager
 from tenacity import retry, stop_after_attempt, wait_exponential
-from sentence_transformers import SentenceTransformer
-import logging
-# from app.shared.logger import get_logger
+from sentence_transformers import CrossEncoder
+# import logging
+from app.shared.logger import get_logger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("vectorizer")
+# logging.basicConfig(level=logging.INFO)
+logger = get_logger("reranker_app")
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Loading embedding model...")
-    app.state.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    logger.info("Loading reranker model...")
+    app.state.model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
     logger.info("Model loaded successfully.")
     yield
 
@@ -23,35 +23,36 @@ async def lifespan(app: FastAPI):
     logger.info("Model cleaned up.")
 
 app = FastAPI(
-    title="Custom Vectorizer API",
-    description="Encodes text into vector representations using SentenceTransformers",
+    title="Custom Reranker API",
+    description="Reranks using Cross encoder",
     version="1.0.0",
     lifespan=lifespan
 )
 
-@app.post("/vectorize", response_class=JSONResponse)
-async def vectorize(input: TextInput):
-    if not input.text:
+@app.post("/rerank", response_model=RerankResponse)
+async def rerank(input: RerankInput):
+    if not input.text_list:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Input text list is empty")
     try:
-        logger.info(f"Received request with {len(input.text)} texts")
-        vectors = app.state.model.encode(input.text, convert_to_numpy=True).tolist()
-
-        # Weaviate expects a list of vectors (one per object)
-        return {"vectors": vectors}
+        logger.info(f"Received request with {len(input.text_list)} texts")
+        score = float(app.state.model.predict(input.text_list)[0]) if app.state.model else 0.0
+        return RerankResponse(score=score)
 
     except Exception as e:
-        logger.exception("Vectorization failed")
+        logger.exception("Reranikng failed")
         raise HTTPException(status_code=500, detail=str(e))
     
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health():
-    """Check if the vectorizer model is live or not"""
+    """Check if the reranker model is live or not"""
     try:
-        _ = app.state.model.encode(["ping"], convert_to_numpy=True)
-        return {"status_ok": True}
+        _ = app.state.model.predict(["ping","ping"])
+        return {
+            "status_ok": True,
+            "model_name": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        }
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Model down")
