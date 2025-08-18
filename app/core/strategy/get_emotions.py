@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer, pipeline
 from optimum.onnxruntime import ORTModelForSequenceClassification
-from app.core.factory.emotions_local import EmotionFactory
+from app.core.factory.local.emotions_local import EmotionFactory
 from typing import List
 from functools import lru_cache
 from app.shared.logger import get_logger

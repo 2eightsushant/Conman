@@ -2,8 +2,8 @@ import numpy as np
 from weaviate.classes.query import Filter
 from app.conn.weaviate_client import WeaviateClient
 from weaviate.classes.query import HybridFusion
-from app.core.factory.vectorizer_local import EmbeddingFactory
-from app.core.factory.reranker_local import RerankerFactory
+from app.core.factory.local.vectorizer_local import EmbeddingFactory
+from app.core.factory.local.reranker_local import RerankerFactory
 from app.core.strategy.congnitive_reranker import cognitive_relevance_rerank
 from app.core.strategy.memory_formatter import MemoryFormatter
 from app.core.strategy.memory_sim import apply_memory_effects

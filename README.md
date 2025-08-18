@@ -74,3 +74,11 @@
 - did a tool checking capability
 - developed rough recall functionality with initial testing
 - inserted little complicated conversation of dummy data
+
+
+11th modification:
+- Moved local loading to local directory
+- Developed API with pydantic model for reranker, emotion and vectorizer
+- API have lifespan with health and [rerank, get-emotion, vectorize] endpoints
+- Created helper function for onnx pipeline of emotion model
+- Developed deep health check via main app for all three servers with custom post_json and get_json
