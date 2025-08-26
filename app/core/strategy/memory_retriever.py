@@ -1,34 +1,32 @@
 import numpy as np
 from weaviate.classes.query import Filter
-from app.conn.weaviate_client import WeaviateClient
+from weaviate import WeaviateAsyncClient
+from httpx import AsyncClient
 from weaviate.classes.query import HybridFusion
-from app.core.factory.local.vectorizer_local import EmbeddingFactory
-from app.core.factory.local.reranker_local import RerankerFactory
 from app.core.strategy.congnitive_reranker import cognitive_relevance_rerank
 from app.core.strategy.memory_formatter import MemoryFormatter
 from app.core.strategy.memory_sim import apply_memory_effects
+from app.conn.clients import post_json
 from app.shared.logger import get_logger
+
+vectorizer_url = "http://127.0.0.1:8083/vectorize"
 
 logger = get_logger(__name__)
 
 MEMORY_RETENTION_DAYS = 10
 
-def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
+async def retrieve(weaviate_client: WeaviateAsyncClient, http_client: AsyncClient, query: str, context: dict, top_k: int = 10) -> dict:
     required_context = ['session_id', 'emotion']
     if any(key not in context for key in required_context):
         logger.error(f"Missing context: {required_context}")
         return {"error": "Insufficient context"}
-    
-    weaviate_wrapper = WeaviateClient()
-    weaviate_wrapper.init_client()
-    
+        
     try:
-        with weaviate_wrapper.get() as client:
+        async with weaviate_client as client:
             collection = client.collections.get("DialogMemory")
-            embed_model = EmbeddingFactory.get_embedding_model()
-            reranker = RerankerFactory.get_reranker_model()
             
-            vector = embed_model.encode(query)
+            vector_resp = await post_json(http_client, vectorizer_url, {"text": [query]})
+            vector = vector_resp["vector"][0]
             filters = (
                 Filter.by_property("session_id").equal(context['session_id']) 
                 # Filter.by_property("emotions").contains_any([context['emotion']])
@@ -36,8 +34,7 @@ def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
                 #     datetime.now() - timedelta(days=MEMORY_RETENTION_DAYS)
                 # )
             )
-            
-            response = collection.query.hybrid(
+            response = await collection.query.hybrid(
                 query=query,
                 vector=vector,
                 alpha=0.65,
@@ -51,11 +48,12 @@ def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
             if not chunks:
                 return {"top_chunks": [], "emotion_groups": {}, "retrieval_metrics": {},"description": "Memory not found"}
             
-            reranked = cognitive_relevance_rerank(query, chunks, context, reranker)
+            reranked = await cognitive_relevance_rerank(query, chunks, context, http_client)
             if not reranked:
                 return {"top_chunks": [], "emotion_groups": {}, "retrieval_metrics": {}, "description": "No cognitively relevant memory found"}
             
             emotion_groups = {}
+            
             for score, props, meta in reranked[:10]:
                 primary_emotion = props.get('emotions', ['neutral'])[0]
                 emotion_groups.setdefault(primary_emotion, []).append({
@@ -93,8 +91,6 @@ def retrieve(query: str, context: dict, top_k: int = 10) -> dict:
     except Exception as e:
         logger.error(f"Retrieval failed: {str(e)}")
         return {"error": str(e), "top_chunks": [], "emotion_groups": {}, "retrieval_metrics": {}, "description": "Memory retention error"}
-    finally:
-        weaviate_wrapper.close()
         
 #testing
 def main():
