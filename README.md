@@ -82,3 +82,8 @@
 - API have lifespan with health and [rerank, get-emotion, vectorize] endpoints
 - Created helper function for onnx pipeline of emotion model
 - Developed deep health check via main app for all three servers with custom post_json and get_json
+
+12th modification:
+- Added inference endpoint that will call recall -> ollama_chat, recall_memories -> retrieve -> vectorizer, reranker
+- Modified httpx clients, weaviate_clients, congitive_reranker, memory_retriever to async framework
+- Clients have singleton design

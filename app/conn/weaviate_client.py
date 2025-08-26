@@ -7,28 +7,35 @@ logger = get_logger(__name__)
 
 class WeaviateClient:
     def __init__(self):
-        self.client = None
+        self.client: weaviate.WeaviateAsyncClient | None = None
 
-    def init_client(self):
+    async def init_client(self):
         try:
-            self.client = weaviate.connect_to_local(
-                host=settings.weaviate.weav_host,
-                port=settings.weaviate.weav_port,
-                grpc_port=settings.weaviate.weav_grpc,
-                auth_credentials=Auth.api_key(settings.weaviate.weav_api_key)
+            self.client = weaviate.WeaviateAsyncClient(
+                connection_params=weaviate.connect.ConnectionParams.from_params(
+                    http_host=settings.weaviate.weav_host,
+                    http_secure=False,
+                    http_port=settings.weaviate.weav_port,
+                    grpc_host=settings.weaviate.weav_host,
+                    grpc_port=settings.weaviate.weav_grpc,
+                    grpc_secure=False,
+                ),
+                auth_client_secret=Auth.api_key(settings.weaviate.weav_api_key),
             )
-            logger.info(f"Weaviate client initialized: {self.client.is_ready()}")
+            await self.client.connect()
+            ready = await self.client.is_ready()
+            logger.info(f"Weaviate client initialized: {ready}")
         except Exception as e:
             logger.error(f"Weaviate client initialization failed: {str(e)}")
             raise
 
-    def get(self) -> weaviate.Client:
+    def get(self) -> weaviate.WeaviateAsyncClient:
         if not self.client:
-            logger.info("Weaviate client not initialized")
             raise RuntimeError("Weaviate client not initialized")
         return self.client
 
-    def close(self):
-        self.client.close()
-        logger.info("Weaviate Client closed")
-        self.client = None
+    async def close(self):
+        if self.client:
+            await self.client.close()
+            logger.info("Weaviate Client closed")
+            self.client = None

@@ -11,14 +11,12 @@ def get_client() -> httpx.AsyncClient:
     return _client
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=0.5, max=4))
-async def post_json(url: str, payload: dict) -> dict:
-    client = get_client()
+async def post_json(client: httpx.AsyncClient, url: str, payload: dict) -> dict:
     resp = await client.post(url, json=payload)
     resp.raise_for_status()
     return resp.json()
 
-async def get_json(url: str) -> dict:
-    client = get_client()
+async def get_json(client: httpx.AsyncClient, url: str) -> dict:
     resp = await client.get(url)
     resp.raise_for_status()
     return resp.json()
