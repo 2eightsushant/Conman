@@ -14,3 +14,4 @@ docker/docker-compose.yml
 app/logs/
 app/onnx/
 .vscode/
+app/prompts

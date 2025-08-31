@@ -1,11 +1,14 @@
 from typing import List, Dict
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from weaviate.util import generate_uuid5
-from uuid import UUID
 from datetime import datetime, timezone
+from httpx import AsyncClient, HTTPError
+
+from app.conn.clients import post_json
 from app.shared.logger import get_logger
 
 logger = get_logger(__name__)
+emotion_url = "http://127.0.0.1:8082/emotion-score"
 
 class DialogChunker:
     def __init__(self, window_size: int = 5, overlap: int = 1, chunk_size: int = 500):
@@ -16,15 +19,19 @@ class DialogChunker:
             chunk_overlap=50
         )
 
-    def chunk(self, messages: List[Dict], emotion_model) -> List[Dict]:
+    async def chunk(self, messages: List[Dict], http_client: AsyncClient) -> List[Dict]:
+        if not messages:
+            return []
+        
         try:
             logger.info(f"Starting chunking for session {messages[0]['session_id']}")
-            chunks = []
-            buffer = []
-            counter = 0
             session_id = messages[0]['session_id']
-
-            processed = []
+            
+            chunks: List[Dict] = []
+            buffer: List = []
+            counter = 0
+            processed: List[Dict] = []
+            
             for msg in messages:
                 try:
                     if len(msg["content"]) > 500 and msg["role"] == "assistant":
@@ -38,26 +45,40 @@ class DialogChunker:
                         processed.append(msg)
                 except Exception as e:
                     logger.warning(f"Splitting message failed due to {str(e)}")
-                    return []
+                    continue
 
             for i, msg in enumerate(processed):
                 buffer.append((counter, msg))
-                time_span = []
+                time_span: List[float] = []
 
                 if len(buffer) >= self.window_size or i == len(processed) - 1:
                     content = "\n".join([f"{b[1]['role'].capitalize()}: {b[1]['content']}" for b in buffer])
-                    emotions = emotion_model.get_emotions("\n".join([f"{b[1]['content']}" for b in buffer if b[1]['role'] == 'user']))
+                    text = "\n".join([f"{b[1]['content']}" for b in buffer if b[1]['role'] == 'user'])
+                    emotions = None
+                    if text.strip():
+                        try:
+                            emotions = await post_json(http_client, emotion_url, {"text": text})
+                        except HTTPError as he:
+                            logger.error(f"Emotion API error: {str(he)}")
+                        except Exception as e:
+                            logger.error(f"Unexpected emotion fetch error: {str(e)}")
+
                     for k in range(1, len(buffer)):
                         prev_time = buffer[k-1][1]['message_created_at']
                         curr_time = buffer[k][1]['message_created_at']
                         diff = (curr_time-prev_time).total_seconds()
                         time_span.append(diff)
 
+                    timestamps = [
+                        ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+                        for ts in [b[1]["message_created_at"] for b in buffer]
+                    ]
+                    
                     metadata = {
                         "session_id": session_id,
                         "username": list(set(b[1]['name'] for b in buffer)),
                         "speakers": list(set(b[1]['role'] for b in buffer)),
-                        "emotions": emotions,
+                        "emotions": emotions['emotions'],
                         "temporal_context": {
                             "start_index": buffer[0][0] if buffer else -1,
                             "end_index": buffer[-1][0] if buffer else -1,
@@ -66,10 +87,7 @@ class DialogChunker:
                             "prev_chunk_id": chunks[-1]["id"] if chunks else None,
                             "time_span_seconds": time_span,
                         },
-                        "timestamp": [
-                                (ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc))
-                                for ts in [b[1]['message_created_at'] for b in buffer]
-                            ],
+                        "timestamp": timestamps,
                     }
 
                     chunks.append({
@@ -87,5 +105,6 @@ class DialogChunker:
             return chunks
         
         except Exception as e:
-            logger.warning(f"Error generating chunks for session {messages[0]['session_id']}: {str(e)}")
+            sid = messages[0].get("session_id", "unknown") if messages else "unknown"
+            logger.warning(f"Error generating chunks for session {sid}: {str(e)}")
             return []

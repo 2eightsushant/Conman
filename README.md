@@ -87,3 +87,13 @@
 - Added inference endpoint that will call recall -> ollama_chat, recall_memories -> retrieve -> vectorizer, reranker
 - Modified httpx clients, weaviate_clients, congitive_reranker, memory_retriever to async framework
 - Clients have singleton design
+
+13th modification(major change):
+- Async db connection
+- Modified recall_memories, chunker, formatter, schema, recall, ingestmessage, push to weaviate, helperhead to asynchronous model
+- Added insert to db, that will push the conversation to db with each query
+- Now instead of one call there will be two calls per chat round, main llm -> tools -> reflector/judge
+- Reflector main purpose is to filter irrelevant memories
+- Maintained prompts with versioning and yaml registry
+- Now weaviate schema initialization have singleton pattern
+- Handeled session_id at the endpoint

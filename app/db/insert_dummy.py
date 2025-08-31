@@ -238,8 +238,40 @@ def insert_dummy_data4():
         print("Error:", e)
     finally:
         db.close()
+        
+def insert_dummy_data5():
+    db: Session = SessionLocal()
+
+    try:
+        # Create a user
+        user = User(
+            id=uuid.uuid4(),
+            name="Sushant Shrestha",
+            email="sushant@example.com",
+            username="sushant",
+            api_key="test-api-key"
+        )
+        db.add(user)
+        db.flush()
+
+        # Create a session
+        session = ChatSession(
+            id=uuid.uuid4(),
+            user_id=user.id
+        )
+        db.add(session)
+        db.flush()
+        db.commit()
+    
+    except Exception as e:
+        db.rollback()
+        print("Error:", e)
+
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     # insert_dummy_data()
     # insert_dummy_data2()
-    insert_dummy_data4()
+    # insert_dummy_data4()
+    insert_dummy_data5()
