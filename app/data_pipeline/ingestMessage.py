@@ -1,52 +1,39 @@
-from app.conn.localsession import SessionLocal
+import asyncio
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.future import select
 from app.db.models import ChatMessage, ChatSession, User
 from .helper.helperHead import gethead, updatehead, update_is_vectorized
 from app.core.strategy.chunker import DialogChunker
+from weaviate import WeaviateAsyncClient
+from httpx import AsyncClient
 from app.schemas.db_models import HeadResponse, MessageModel
-from typing import Optional, List, Generator
-from app.core.strategy.get_emotions import RoBertEmotionGo
-from sqlalchemy.orm import Session, joinedload
-from app.core.factory.local.vectorizer_local import EmbeddingFactory
+from sqlalchemy.orm import joinedload
 from app.data_pipeline.push_to_weaviate import ingest_chunk
 from weaviate.util import generate_uuid5
-from app.core.weaviate.schema import DialogMemorySchema
-from app.conn.weaviate_client import WeaviateClient
 from tqdm import tqdm
-from contextlib import contextmanager
+from app.conn.postgre_conn import get_db
+from app.conn.clients import post_json
 from app.shared.logger import get_logger
 
 logger = get_logger(__name__)
+vectorizer_url = "http://127.0.0.1:8083/vectorize"
 
-@contextmanager
-def db_session() -> Generator[Session, None, None]:
-    '''Context manager for database session with proper cleanup'''
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-
-def ingest_ready_messages(session_id: UUID):
+async def ingest_ready_messages(session_id: UUID, client: WeaviateAsyncClient, http_client: AsyncClient):
     """Ingest messages to vector database for a session with advisory lock"""
     logger.info(f"Starting ingestion for session {session_id}")
 
     try:
-        with db_session() as db:
-            head_response: HeadResponse = gethead(db, session_id)
-            messages = db.query(ChatMessage)\
+        async with get_db() as db:
+            head_response: HeadResponse = await gethead(db, session_id)
+            stmt = select(ChatMessage)\
             .join(ChatSession, ChatMessage.session_id == ChatSession.id)\
             .join(User, ChatSession.user_id == User.id)\
             .filter(ChatMessage.session_id == session_id)\
             .filter(ChatMessage.position > head_response.current_head)\
             .options(joinedload(ChatMessage.session).joinedload(ChatSession.user))\
-            .order_by(ChatMessage.position.asc())\
-            .all()
+            .order_by(ChatMessage.position.asc())
+            results = await db.execute(stmt)
+            messages = results.scalars().all()
 
             if not messages:
                 logger.info("No new messages")
@@ -63,50 +50,44 @@ def ingest_ready_messages(session_id: UUID):
                 }
                 for message in messages
             ]
-
+            await client.connect()
             chunker = DialogChunker()
-            weaviate_wrapper = WeaviateClient()
-            weaviate_wrapper.init_client()
-            client = weaviate_wrapper.get()
-            DialogMemorySchema().initialize_schema(client)
-            emotion_model = RoBertEmotionGo(k=2)
-            chunks = chunker.chunk(messages=messages_dict, emotion_model=emotion_model)
-            embed_model = EmbeddingFactory.get_embedding_model()
+            chunks = await chunker.chunk(messages=messages_dict, http_client=http_client)
             # if client.collections.exists("DialogMemory"):
             #     logger.debug("Deleting collection")
             #     client.collections.delete("DialogMemory")
             collection = client.collections.get("DialogMemory")
 
-            try:
-                for chunk in tqdm(chunks, desc="Pushing chunks to Weaviate"):
-                    try:
-                        exists = collection.data.exists(chunk["id"])
-                        if not exists:
-                            logger.info(f"Inserting new chunk: {chunk['id']}")
-                            vector = embed_model.encode(chunk['content'])
-                            ingest_chunk(client=client, chunk=chunk, embedding=vector)
-                        else:
-                            logger.info(f"Chunk {chunk['id']} already exists, skipping.")
-                    except Exception as e:
-                        logger.error(f"Chunk ingestion failed for {chunk['id']}: {str(e)}")
-            finally:
+            tasks = []
+            for chunk in tqdm(chunks, desc="Pushing chunks to Weaviate"):
                 try:
-                    weaviate_wrapper.close()
+                    exists = await collection.data.exists(chunk["id"])
+                    if not exists:
+                        logger.info(f"Inserting new chunk: {chunk['id']}")
+                        vector_resp = await post_json(http_client, vectorizer_url, {"text": [chunk['content']]})
+                        vector = vector_resp['vector'][0]
+                        tasks.append(ingest_chunk(client=client, chunk=chunk, embedding=vector))
+                    else:
+                        logger.info(f"Chunk {chunk['id']} already exists, skipping.")
                 except Exception as e:
-                    logger.warning(f"Could not close Weaviate client cleanly: {e}")
+                    logger.error(f"Chunk ingestion failed for {chunk['id']}: {str(e)}")
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            if all(not isinstance(r, Exception) for r in results):
+                await updatehead(db, session_id, head_response)
+                await update_is_vectorized(db, messages)
+            else:
+                logger.warning("Some chunk ingestions failed; not updating head")
 
-            updatehead(db, session_id, head_response)
-            update_is_vectorized(db, messages)
-
-    
     except Exception as e:
         logger.error(f"Ingestion of messages to vector database failed for session{session_id}: {str(e)}")
             
 
-
 def main():
     sid = 'a4a33e50-c3ec-4672-b806-1c8ed51ad6d1'
-    ingest_ready_messages(sid)
+    async def runner():
+        async with AsyncClient() as http_client, WeaviateAsyncClient("http://localhost:8080") as wv_client:
+            await ingest_ready_messages(sid, wv_client, http_client)
+    asyncio.run(runner())
 
 if __name__== "__main__":
     main()

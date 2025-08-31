@@ -21,7 +21,6 @@ class MemoryFormatter:
             formatted.append({
                 "time": time_str,
                 "content": content,
-                "score": score.item(),
                 "emotion": props.get("emotions", ["neutral"]),
                 "importance": self._score_label(score),
                 "continues_from": bool(props.get("temporal_context", {}).get("prev_chunk_id"))

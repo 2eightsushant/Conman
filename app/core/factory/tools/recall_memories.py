@@ -2,8 +2,9 @@ from app.core.strategy.memory_retriever import retrieve
 from app.core.strategy.memory_formatter import MemoryFormatter
 from weaviate import WeaviateAsyncClient
 from httpx import AsyncClient
+from ollama import AsyncClient as OllamaAsyncClient
+from app.prompts.prompt_loader import load_prompt
 from app.shared.logger import get_logger
-import asyncio
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,7 @@ class recallMemory:
             }
         ]
 
-    async def recall_memories(self, query: str, weaviate_client: WeaviateAsyncClient, http_client:AsyncClient) -> str:
+    async def recall_memories(self, query: str, weaviate_client: WeaviateAsyncClient, http_client:AsyncClient, session_id: str) -> str:
         """
         Get the memories
         
@@ -42,13 +43,35 @@ class recallMemory:
         """
         try:
             logger.info("Tool: RecallMemory called, retrieving the results...")
-            context = {"session_id":"a4a33e50-c3ec-4672-b806-1c8ed51ad6d1", "emotion":"neutral"}
+            context = {"session_id":session_id, "emotion":"neutral"}
             top_results = await retrieve (query=query, context=context, weaviate_client=weaviate_client, http_client=http_client, top_k=30)
             retrieved = top_results.get("raw_reranked")
             if retrieved:
                 formatter = MemoryFormatter(readable_time=True)
                 formatted = formatter.format(reranked_chunks=retrieved, limit=3)
-                return formatted
+                recalled_blocks = [
+                    f"(Time:{mem['time']}, Emotions:{mem['emotion']}, Importance:{mem['importance']})\n{mem['content']}" for mem in formatted
+                ]                
+                
+                system_prompt = await load_prompt(version="v1.0.0", key="path_reflect")
+                
+                memory = "\n\nRecalled past conversations:\n\n" + "\n\n".join(recalled_blocks)
+                print(memory)
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "query": query},
+                    {"role": "user", "content": memory}
+                ]
+                logger.info("Running reflector...")
+                response = await OllamaAsyncClient().chat(
+                    model="llama3.2:3b",
+                    messages=messages,
+                    options={"temperature": 0.7, "num_ctx": 2048}
+                )
+                logger.info("Reflecting success!")
+                response = response.get("message", {})
+                return response.get("content", "")
+                
             else:
                 logger.info("No memories found")
                 return "No memories for the give query"

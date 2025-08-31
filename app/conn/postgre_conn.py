@@ -1,11 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.engine_async import AsyncSessionLocal
+from app.db.engine_async import AsyncSessionLocal
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from shared.logger import get_logger
-
-logger = get_logger(__name__)
-
+@asynccontextmanager
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            await session.close()

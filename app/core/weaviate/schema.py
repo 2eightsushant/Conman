@@ -1,5 +1,6 @@
+import asyncio
 import weaviate.classes as wvc
-from weaviate import WeaviateClient
+from weaviate import WeaviateAsyncClient
 from app.config.settings import settings
 from app.shared.logger import get_logger
 
@@ -12,13 +13,14 @@ class DialogMemorySchema:
         self.collection_object = None
         self.collection_name = settings.weaviate.weav_collection
 
-    def initialize_schema(self, client: WeaviateClient)->None:
+    async def initialize_schema(self, client: WeaviateAsyncClient)->None:
             try:
-                if client.collections.exists(self.collection_name):
+                exists = await client.collections.exists(self.collection_name)
+                if exists:
                     logger.info(f"Collection already initialized: {self.collection_name}")
                 
                 else:
-                    self.collection_object = client.collections.create(
+                    self.collection_object = await client.collections.create(
                         name=self.collection_name,
                         description="Dialog-centric episodic memory chunks with turn-taking, emotions, and temporal structure.",
                         vectorizer_config=wvc.config.Configure.Vectorizer.none(),
